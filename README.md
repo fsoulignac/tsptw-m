@@ -1,5 +1,5 @@
 # Simple solver for the traveling salesman problem with time windows, makespan objective (TSPTW-M)
-A simple informed search solver for the TSPTW.  The main algorithm includes:
+A simple informed search solver for the TSPTW-M and the TSTPTW-D.  The main algorithm includes:
 - TO BE DONE
 
 ## Getting started
@@ -40,11 +40,10 @@ TO BE DONE
 TO BE DONE
 
 ## Built With
+* [GCC's Policy-Based Data Structures](https://gcc.gnu.org/onlinedocs/libstdc++/manual/policy_data_structures.html)
 * [JSON for Modern C++](https://github.com/nlohmann/json)
-* [Boost Graph Library](https://www.boost.org/doc/libs/1_66_0/libs/graph/doc/index.html)
 
 ## Authors
-Optimization and logistics group
 - Francisco Juan Soulignac (ICC-CONICET and Universidad Nacional de Quilmes)
 
 ## License
