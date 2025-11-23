@@ -1,0 +1,22 @@
+{
+  "description": "Experiments for the TSPTW.M and TSTPW-D for 128 customers",
+  "datasets": [
+    {"name": "gendreau_et_al_1998"}
+  ],
+  "experiments": [
+    {
+      "name": "basic",
+      "executable": "tsptw127",
+      "time_limit": 3600,
+      "reverse": false,
+      "makespan_only": false
+    },
+    {
+      "name": "basic-reverse",
+      "executable": "tsptw127",
+      "time_limit": 3600,
+      "reverse": true,
+      "makespan_only": false
+    }
+  ]
+}

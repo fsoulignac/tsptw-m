@@ -1,0 +1,22 @@
+{
+  "description": "Experiments for the TSPTW-M and TSPTW-D for 512 customers",
+  "datasets": [
+    {"name": "dasilva_urrutia_2010"}
+  ],
+  "experiments": [
+    {
+      "name": "basic",
+      "executable": "tsptw511",
+      "time_limit": 3600,
+      "reverse": false,
+      "makespan_only": false
+    },
+    {
+      "name": "basic-reverse",
+      "executable": "tsptw511",
+      "time_limit": 3600,
+      "reverse": true,
+      "makespan_only": false
+    }
+  ]
+}
