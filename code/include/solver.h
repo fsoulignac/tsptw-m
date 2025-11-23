@@ -44,11 +44,11 @@ namespace tsptwm
      * @param instance the transport network D
      * @param dir the direction of traversal
      * @param departure time t of departure
-     * @param max_travel_time T - t, the maximum time that the vehicle can travel
+     * @param max_travel_time horizon T
 	 * @return a route R and the log of the execution.  If there exists a feasible route, then R is such a route; otherwise
      * R is an empty route.
      */
-    std::pair<Route, LBFSLog> LBFS(const Instance& instance, Direction dir, Time departure, Time max_travel_time);
+    std::pair<Route, LBFSLog> LBFS(const Instance& instance, Direction dir, Time departure, Time max_arrival_time);
 
 } // namespace tsptwm
 

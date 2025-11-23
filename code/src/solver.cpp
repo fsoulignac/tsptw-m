@@ -69,7 +69,7 @@ pair<Route, MakespanSolverLog> SolveMakespan(const Instance& instance, const Rou
             } else {
                 DEBUG_ELEM(INFO, "DFS Enumeration completed");
                 solved = true;
-            } 
+            }
         }
     } catch(TimeLimitExceeded&) {
         log.status = SolverStatus::TimeLimitExceeded;
@@ -85,9 +85,9 @@ pair<Route, MakespanSolverLog> SolveMakespan(const Instance& instance, const Rou
     return {ub, log};
 }
 
-pair<Route, LBFSLog> LBFS(const Instance& instance, Direction dir, Time departure, Time max_travel_time)
+pair<Route, LBFSLog> LBFS(const Instance& instance, Direction dir, Time departure, Time max_arrival_time)
 {
-    DEBUG_ELEM(INFO, "Running the LBFS algorithm with departure {}, traveling at most {}", departure, max_travel_time);
+    DEBUG_ELEM(INFO, "Running the LBFS algorithm with departure {}, traveling at most until {}", departure, max_arrival_time);
 
 	Stopwatch rolex_run;
     LBFSLog plog;
@@ -160,8 +160,8 @@ pair<Route, LBFSLog> LBFS(const Instance& instance, Direction dir, Time departur
             auto travel_time = arrival - departure;
             DEBUG_ELEM(TRACE, "\t\t\tArrival time: {}, travel time: {}", arrival, travel_time);
                 
-            if(travel_time > max_travel_time or arrival > instance.GetTimeWindow(dir, v).deadline) {
-                DEBUG_ELEM(TRACE, "\t\t\tIgnoring the extension because the travel time {} exceedes the max travel time {} or the arrival {} is outside the time window {}", travel_time, max_travel_time, arrival, instance.GetTimeWindow(dir, v));
+            if(arrival >= max_arrival_time or arrival > instance.GetTimeWindow(dir, v).deadline) {
+                DEBUG_ELEM(TRACE, "\t\t\tIgnoring the extension because the arrival time {} exceedes the max travel time {} or the arrival {} is outside the time window {}", travel_time, max_arrival_time, arrival, instance.GetTimeWindow(dir, v));
                 plog.discarded_count += 1;
                 continue;
             }
@@ -188,20 +188,17 @@ pair<Route, LBFSLog> LBFS(const Instance& instance, Direction dir, Time departur
                 }
             }
             
-            if(m.last == instance.Destination(dir)) {
+            if(m.last == instance.Destination(dir)) 
+            {
                 auto r = m.GetRoute(departure);
                 if(dir == Direction::Backward) {
                     reverse(r.path.begin(), r.path.end());
                     r.departure = 0;
                     r.arrival = instance.ArrivalTime(r);
                 }
-                if(r.arrival < max_travel_time)
-                {
-                    DEBUG_ELEM(VERBOSE, "\tNew route found: {} with undominated count {}", r, plog.undominated_count);
-                    res = r;
-                    break;
-                }
-                continue;
+                DEBUG_ELEM(VERBOSE, "\tNew route found: {} with undominated count {}", r, plog.undominated_count);
+                res = r;
+                break;
             }
                                   
             m.latest_arrival = min(
@@ -215,9 +212,9 @@ pair<Route, LBFSLog> LBFS(const Instance& instance, Direction dir, Time departur
                 m_route, 
                 instance.Horizon() - m.latest_arrival
             );
-            ASSERT(ASSERTION, m.back_arrival_time <= max_travel_time, "back arrival time greater than max travel time in feasible path. back_arrival: {} {}", m.back_arrival_time, max_travel_time);
+            ASSERT(ASSERTION, m.back_arrival_time <= max_arrival_time, "back arrival time greater than max travel time in feasible path. back_arrival: {} {}", m.back_arrival_time, max_arrival_time);
 
-            if(m.back_arrival_time == max_travel_time) {
+            if(m.back_arrival_time == max_arrival_time) {
                 DEBUG_ELEM(TRACE, "\t\tDiscarding {} because of the back arrival time {}", m, m.back_arrival_time);
                 plog.discarded_count += 1;
                 continue;
