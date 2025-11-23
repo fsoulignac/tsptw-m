@@ -28,7 +28,12 @@ namespace tsptwm
 	 * @return a route R and the log of the execution.  If there exists the desired route, then R is such a route; otherwise
      * R is an empty route.
      */
-    std::pair<Route, MakespanSolverLog> SolveMakespan(const Instance& instance, const Route& init = Route());
+    std::pair<Route, MakespanSolverLog> SolveMakespan(
+        const Instance& instance, 
+        const Route& init = Route(), 
+        Direction d = Direction::Forward,
+        Time dep = 0
+    );
 
     /**
      * @brief The labeling best first search method.

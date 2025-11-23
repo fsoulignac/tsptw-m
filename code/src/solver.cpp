@@ -24,7 +24,13 @@ namespace {
     bool is_subset(const VertexSet& x, const VertexSet& y) {return (x & ~y).none();}
 }
 
-pair<Route, MakespanSolverLog> SolveMakespan(const Instance& instance, const Route& init_route) {
+
+pair<Route, MakespanSolverLog> SolveMakespan(
+    const Instance& instance, 
+    const Route& init_route,
+    Direction dir,
+    Time dep
+) {
 
     DEBUG_ELEM(INFO, "Solver::InformedSearch()");
     MakespanSolverLog log;
@@ -33,7 +39,7 @@ pair<Route, MakespanSolverLog> SolveMakespan(const Instance& instance, const Rou
     auto ub = init_route;
     if(ub.path.empty()) {
         std::iota(ub.path.begin(), ub.path.end(), 0);
-        ub.departure = 0;
+        ub.departure = dep;
         ub.arrival = instance.Horizon();
     }
 
@@ -51,7 +57,7 @@ pair<Route, MakespanSolverLog> SolveMakespan(const Instance& instance, const Rou
             Route r;
             LBFSLog bfs_log;
             try {
-                tie(r, bfs_log) = LBFS(instance, Direction::Backward, instance.Horizon() - ub.arrival, instance.Horizon());
+                tie(r, bfs_log) = LBFS(instance, op(dir), instance.Horizon() - ub.arrival + dep, instance.Horizon() - dep);
                 stream_info(format("DFSEnumerate {}", ub.arrival), bfs_log.time);
             } catch(std::bad_alloc& e) {
                 log.status = SolverStatus::MemoryLimitExceeded;
@@ -64,6 +70,9 @@ pair<Route, MakespanSolverLog> SolveMakespan(const Instance& instance, const Rou
             }          
         
             if(not r.path.empty()) {
+                reverse(r.path.begin(), r.path.end());
+                r.departure = dep;
+                r.arrival = instance.ArrivalTime(dir, r);
                 ub = r;
                 DEBUG_ELEM(INFO, "DFSExact: Improved elementary route {}", r);
             } else {
@@ -93,7 +102,6 @@ pair<Route, LBFSLog> LBFS(const Instance& instance, Direction dir, Time departur
     LBFSLog plog;
     Route res;
 
-    
     using PQ = priority_queue<shared_ptr<Label>, vector<shared_ptr<Label>>, decltype([](const shared_ptr<Label>& l, const shared_ptr<Label>& m){
         if(l->back_arrival_time > m->back_arrival_time) return true;
         if(l->back_arrival_time < m->back_arrival_time) return false;
@@ -190,14 +198,8 @@ pair<Route, LBFSLog> LBFS(const Instance& instance, Direction dir, Time departur
             
             if(m.last == instance.Destination(dir)) 
             {
-                auto r = m.GetRoute(departure);
-                if(dir == Direction::Backward) {
-                    reverse(r.path.begin(), r.path.end());
-                    r.departure = 0;
-                    r.arrival = instance.ArrivalTime(r);
-                }
-                DEBUG_ELEM(VERBOSE, "\tNew route found: {} with undominated count {}", r, plog.undominated_count);
-                res = r;
+                res = m.GetRoute(departure);
+                DEBUG_ELEM(VERBOSE, "\tNew route found: {} with undominated count {}", res, plog.undominated_count);
                 break;
             }
                                   

@@ -26,7 +26,7 @@ bool LocalImprove(
     {
         Route r = *route;
         if(not op(r, i, j)) continue;
-        r.arrival = instance.ArrivalTime(r);
+        r.arrival = instance.ArrivalTime(r, r.departure);
         if(r.arrival < route->arrival) 
         {
             *route = r;
