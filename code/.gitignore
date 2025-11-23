@@ -1,0 +1,4 @@
+*.project
+*.workspace
+.codelite
+cmake-build-Debug
