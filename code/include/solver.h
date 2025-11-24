@@ -12,6 +12,9 @@
 namespace tsptwm
 {
 
+    std::tuple<Route, Route, Route, DurationSolverLog> SolveDuration(const Instance& instance, bool ms_only);
+    
+    
     /**
      * @brief The solver for the TSPTW-M
      * 

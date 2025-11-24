@@ -43,10 +43,11 @@ Time Instance::ArrivalTime(Direction d, const Route& route, Time t0) const {
 
 
 bool Instance::UpdateTimeWindow(Direction d, Vertex v, TimeWindow wdw) {
-    DEBUG_ELEM(TRACE, "UpdateTimeWindow(direction: {}, vertex: {}, time: {})", d, v, wdw);    
-    if(d == Direction::Backward)
+    DEBUG_ELEM(TRACE, "UpdateTimeWindow(direction: {}, vertex: {}, time: {}). Previous window: {}", d, v, wdw, window[v]);    
+    if(d == Direction::Backward) {
         wdw = TimeWindow{Horizon() - wdw.deadline, Horizon() - wdw.release};
-    DEBUG_ELEM(TRACE, "UpdateTimeWindow(direction: {}, vertex: {}, time: {})", op(d), v, wdw);    
+        DEBUG_ELEM(TRACE, "UpdateTimeWindow(direction: {}, vertex: {}, time: {})", op(d), v, wdw);
+    }
     bool changed = wdw.release > window[v].release or wdw.deadline < window[v].deadline;
     window[v].release = max(window[v].release, wdw.release);
     window[v].deadline = min(window[v].deadline, wdw.deadline);
@@ -86,15 +87,16 @@ void Instance::UpdatePredecessors() {
     };
 
     for(bool changed = true; changed;) {
+        DEBUG_ELEM(INFO, "New iteration of preprocessing");
         changed = false;
         for(auto dir : {Direction::Forward, Direction::Backward}) {
-            vector<vector<Time>> LDT(VertexCount(), vector<Time>(VertexCount(), 0));
+            vector<vector<Time>> LDT(VertexCount(), vector<Time>(VertexCount(), -1));
             for(auto v : Vertices())
             {
                 auto best_back = dijkstra(op(dir), v);
                 for(auto w = 0ul; w < VertexCount(); ++w)
                 if(w != Destination(dir))
-                    LDT[w][v] = best_back[w] == infty_time ? 0 : Horizon() - best_back[w];
+                    LDT[w][v] = best_back[w] == infty_time ? -1 : Horizon() - best_back[w];
             }
                     
             vector<vector<Time>> EAT(VertexCount(), vector<Time>(VertexCount(), infty_time));
@@ -114,7 +116,7 @@ void Instance::UpdatePredecessors() {
             for(auto v : Vertices())
             for(auto w : Vertices()) 
             if(w != v)
-            if(LDT[v][w] > 0)
+            if(LDT[v][w] >= 0)
             for(auto z : Vertices()) 
             if(z != v)
             if(z != w)
@@ -122,7 +124,7 @@ void Instance::UpdatePredecessors() {
             if(EAT[v][w] > LDT[w][z])
             if(EAT[v][z] > LDT[z][w])
             {
-                LDT[v][w] = 0;
+                LDT[v][w] = -1;
                 EAT[v][w] = infty_time;
             }    
             
@@ -139,8 +141,8 @@ void Instance::UpdatePredecessors() {
                 for(auto [t, w] : sorted_ldt) 
                 if(w != v)    
                 {                
-                    if(t > U.back().first) {
-                        U.emplace_back(t, U.back().second);
+                    if(t >= U.back().first) {
+                        U.emplace_back(t+1, U.back().second);
                     }
                     U.back().second.set(w);
                 }   
@@ -159,6 +161,7 @@ void Instance::UpdatePredecessors() {
                         release = min(release, EAT[w][v]);
                 }
                 changed = UpdateTimeWindow(dir, v, {release, deadline}) or changed;
+                DEBUG_ELEM(TRACE, "Time window of {} in direction {}: {}", v, dir, GetTimeWindow(dir, v));
             }
         }
     }

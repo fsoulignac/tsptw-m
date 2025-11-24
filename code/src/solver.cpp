@@ -22,6 +22,119 @@ namespace tsptwm
 
 namespace {
     bool is_subset(const VertexSet& x, const VertexSet& y) {return (x & ~y).none();}
+    
+    void set_best_departure(const Instance& instance, Route& r) {
+        if(r.arrival < instance.Horizon())
+        r.arrival = instance.ArrivalTime(r, r.departure);
+        while(instance.ArrivalTime(r, r.departure + 1) == r.arrival) r.departure += 1;
+    }
+}
+
+tuple<Route, Route, Route, DurationSolverLog> SolveDuration(const Instance& instance, bool ms_only)
+{
+    DurationSolverLog log;
+    Time p = 0, q = 0, last_p = infty_time;
+    tsptwm::Route prev_best;
+    Route ub(0,infty_time, {}), ms_ub, reverse_ms_ub;
+
+    while(p <= last_p) {
+        time_guardian.FailIfTimeLimit();
+            
+        DEBUG_ELEM(PRINT, "\n\nSolving for departure time {}/{}\n", p, last_p); 
+            
+        if(not prev_best.path.empty()) {
+            prev_best.departure = p;
+            prev_best.arrival = instance.ArrivalTime(prev_best, p);
+            prev_best = LocalSearch(instance, prev_best);
+            if(prev_best.Duration() <= q-p)
+                set_best_departure(instance, prev_best);
+                    
+            DEBUG_ELEM(INFO, "After local search: {}", prev_best);
+                    
+            if(prev_best.Duration() < ub.Duration()) {
+                ub = prev_best;
+                DEBUG_ELEM(PRINT, "Updated best solution to {}", ub);
+            }
+                    
+            if(prev_best.Duration() <= q-p) {
+                p = prev_best.departure + 1;
+                continue;
+            }
+            
+            if(prev_best.arrival >= instance.Horizon())
+                prev_best = Route(p, p + ub.Duration(), {});
+        }
+                        
+        auto [fwd_best, fwd_log] = SolveMakespan(instance, prev_best, Direction::Forward, p);
+        log.enum_time += fwd_log.time;
+                        
+        if(fwd_log.status == SolverStatus::Completed) {
+            DEBUG_ELEM(ASSERTION, "Found a solution {}", fwd_best);
+            
+            if(p == 0) {
+                log.ms_status = SolverStatus::Completed;
+                ms_ub = fwd_best;
+            } else if(last_p > instance.Horizon() and fwd_log.ub >= instance.Horizon()) {
+                //por si falla el last_t0
+                break;
+            } 
+
+            prev_best = fwd_best;
+            set_best_departure(instance, prev_best);
+            if(prev_best.Duration() < ub.Duration()) {
+                ub = prev_best;
+                DEBUG_ELEM(PRINT, "Updated best solution to {}", ub);
+            }
+
+            q = prev_best.arrival;
+            DEBUG_ELEM(INFO, "Updated q to {}", q);
+        }    
+            
+        if(p == 0) {
+            log.ms_time = time_guardian.Now();
+            log.ms_ub = fwd_log.ub; 
+            log.ms_preprocess_time = log.preprocess_time;
+            log.ms_enum_time = log.enum_time;
+            if(ms_only) break;
+        }
+            
+        if(fwd_log.status != SolverStatus::Completed) break;
+            
+        if(p == 0) {
+            Stopwatch rolex_ms_back;
+            clog << endl << endl << "Computing the latest feasible departure" << endl; 
+
+            auto [bwd_best, bwd_log] = SolveMakespan(instance, Route(), Direction::Backward, 0);
+            log.enum_time += bwd_log.time;
+
+            log.reverse_ms_ub = bwd_log.ub;
+            log.reverse_ms_time = rolex_ms_back.Elapsed();
+
+            DEBUG_ELEM(ASSERTION, "Found a solution: {}", bwd_best);
+            if(bwd_log.status == SolverStatus::Completed) {
+                log.reverse_ms_status = SolverStatus::Completed;                  
+                last_p = bwd_best.departure;
+                DEBUG_ELEM(PRINT, "Lastest departure: {}", last_p);
+                reverse(bwd_best.path.begin(), bwd_best.path.end());
+                reverse_ms_ub = bwd_best;
+                    
+                set_best_departure(instance, bwd_best);
+                if(bwd_best.Duration() < ub.Duration()) {
+                    ub = bwd_best;
+                    DEBUG_ELEM(PRINT, "Updated best solution to {}", ub);
+                }
+            }
+        }
+
+        p = q - ub.Duration() + 1;
+        DEBUG_ELEM(INFO, "Updated p to {}", p);
+    }
+    
+    if(p > last_p) {
+        log.status = SolverStatus::Completed;
+    }
+    log.ub = ub.Duration();
+    return {ub, ms_ub, reverse_ms_ub, log};
 }
 
 
@@ -42,6 +155,7 @@ pair<Route, MakespanSolverLog> SolveMakespan(
         ub.departure = dep;
         ub.arrival = instance.Horizon();
     }
+    DEBUG_ELEM(INFO, "ub: {}, duration: {}, instance.horizon {}", ub, ub.Duration(), instance.Horizon());
 
     // Output to console
     clog << format("{:>12}\t{:<30}{:>12}{:>12}\n", "Time", "Process", "Duration", "BKS");
@@ -52,40 +166,35 @@ pair<Route, MakespanSolverLog> SolveMakespan(
 
     Stopwatch rolex;
     bool solved = false;
-    try {
-        while(not solved) {                
-            Route r;
-            LBFSLog bfs_log;
-            try {
-                tie(r, bfs_log) = LBFS(instance, op(dir), instance.Horizon() - ub.arrival + dep, instance.Horizon() - dep);
-                stream_info(format("DFSEnumerate {}", ub.arrival), bfs_log.time);
-            } catch(std::bad_alloc& e) {
-                log.status = SolverStatus::MemoryLimitExceeded;
-                stream_info("DFSEnumerate (MLE)", rolex.Elapsed());
-                break;
-            } catch(TimeLimitExceeded& tle) {
-                log.status = SolverStatus::TimeLimitExceeded;
-                stream_info("DFSEnumerate (TLE)", rolex.Elapsed());
-                break;
-            }          
-        
-            if(not r.path.empty()) {
-                reverse(r.path.begin(), r.path.end());
-                r.departure = dep;
-                r.arrival = instance.ArrivalTime(dir, r);
-                ub = r;
-                DEBUG_ELEM(INFO, "DFSExact: Improved elementary route {}", r);
-            } else {
-                DEBUG_ELEM(INFO, "DFS Enumeration completed");
-                solved = true;
-            }
-        }
-    } catch(TimeLimitExceeded&) {
-        log.status = SolverStatus::TimeLimitExceeded;
-    }
+    while(not solved) {     
+        Route r;
+        LBFSLog bfs_log;
+        try {
+            tie(r, bfs_log) = LBFS(instance, op(dir), instance.Horizon() - ub.Duration(), instance.Horizon() - dep);
+        } catch(std::bad_alloc& e) {
+            log.status = SolverStatus::MemoryLimitExceeded;
+            stream_info("DFSEnumerate (MLE)", rolex.Elapsed());
+            break;
+        } catch(TimeLimitExceeded& tle) {
+            log.status = SolverStatus::TimeLimitExceeded;
+            stream_info("DFSEnumerate (TLE)", rolex.Elapsed());
+            break;
+        }          
     
+        if(not r.path.empty()) {
+            reverse(r.path.begin(), r.path.end());
+            r.departure = dir == Direction::Forward ? dep : instance.Horizon() - instance.ArrivalTime(dir, r, dep);
+            r.arrival = dir == Direction::Forward ? instance.ArrivalTime(dir, r) : instance.Horizon() - dep;
+            ub = r;
+            DEBUG_ELEM(INFO, "DFSExact: Improved elementary route {}", r);
+        } else {
+            DEBUG_ELEM(INFO, "DFS Enumeration completed");
+            solved = true;
+        }
+        stream_info(format("DFSEnumerate {}", ub.Duration()), bfs_log.time);
+    }
     log.time = rolex.Elapsed();
-    log.ub = ub.arrival;
+    log.ub = ub.Duration();
     
     if(log.status == SolverStatus::DidNotStart)
     if(solved) 
@@ -168,7 +277,7 @@ pair<Route, LBFSLog> LBFS(const Instance& instance, Direction dir, Time departur
             auto travel_time = arrival - departure;
             DEBUG_ELEM(TRACE, "\t\t\tArrival time: {}, travel time: {}", arrival, travel_time);
                 
-            if(arrival >= max_arrival_time or arrival > instance.GetTimeWindow(dir, v).deadline) {
+            if(arrival > max_arrival_time or arrival > instance.GetTimeWindow(dir, v).deadline) {
                 DEBUG_ELEM(TRACE, "\t\t\tIgnoring the extension because the arrival time {} exceedes the max travel time {} or the arrival {} is outside the time window {}", travel_time, max_arrival_time, arrival, instance.GetTimeWindow(dir, v));
                 plog.discarded_count += 1;
                 continue;
@@ -195,14 +304,7 @@ pair<Route, LBFSLog> LBFS(const Instance& instance, Direction dir, Time departur
                     it->second = m.travel_time + 1;
                 }
             }
-            
-            if(m.last == instance.Destination(dir)) 
-            {
-                res = m.GetRoute(departure);
-                DEBUG_ELEM(VERBOSE, "\tNew route found: {} with undominated count {}", res, plog.undominated_count);
-                break;
-            }
-                                  
+                                              
             m.latest_arrival = min(
                 instance.ArrivalTime(dir, l.last, v, latest_arrival_l),
                 instance.GetTimeWindow(dir, v).deadline
@@ -214,15 +316,21 @@ pair<Route, LBFSLog> LBFS(const Instance& instance, Direction dir, Time departur
                 m_route, 
                 instance.Horizon() - m.latest_arrival
             );
-            ASSERT(ASSERTION, m.back_arrival_time <= max_arrival_time, "back arrival time greater than max travel time in feasible path. back_arrival: {} {}", m.back_arrival_time, max_arrival_time);
+            ASSERT(ASSERTION, m.back_arrival_time <= max_arrival_time - departure, "back arrival time {} greater than max arrival time - departure ({}-{}) {} in feasible path {}.", m.back_arrival_time, max_arrival_time, departure, max_arrival_time-departure, m);
 
-            if(m.back_arrival_time == max_arrival_time) {
+            if(m.back_arrival_time == max_arrival_time - departure) {
                 DEBUG_ELEM(TRACE, "\t\tDiscarding {} because of the back arrival time {}", m, m.back_arrival_time);
                 plog.discarded_count += 1;
                 continue;
             }
 
             DEBUG_ELEM(TRACE, "\t\tPushing extension {}", m);            
+            if(m.last == instance.Destination(dir)) 
+            {
+                res = m.GetRoute(departure);
+                DEBUG_ELEM(VERBOSE, "\tNew route found: {} with undominated count {}", res, plog.undominated_count);
+                break;
+            }
             queue[m.visited.count()].push(make_shared<Label>(m));            
         }
         q = (q+1)%instance.VertexCount();

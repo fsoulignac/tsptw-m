@@ -2,3 +2,5 @@
 *.workspace
 .codelite
 cmake-build-Debug
+.ctagsd
+cmake-build-Release
