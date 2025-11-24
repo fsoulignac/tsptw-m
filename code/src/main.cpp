@@ -136,11 +136,6 @@ int main()
         Instance instance(&tsp);
         tie(ub, ms_ub, reverse_ms_ub, log) = SolveDuration(instance, ms_only);
     }
-    catch (TimeLimitExceeded& tle)
-    {
-        log.status = SolverStatus::TimeLimitExceeded;
-        clog << "Time limit reached." << endl;
-    } 
     catch (std::bad_alloc& e)
     {
         log.status = SolverStatus::MemoryLimitExceeded;
