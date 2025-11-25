@@ -112,7 +112,7 @@ void Instance::UpdatePredecessors() {
             // 1) z -> v -> w => EAT(z, v) <= LDT(v,w)
             // 2) v -> w -> z => EAT(v, w) <= LDT(w,z)
             // 3) v -> z -> w => EAT(v, z) <= LDT(z, w)
-            // En caso que ninguna sea factible actualizamos LDT(v, w) = 0
+            // En caso que ninguna sea factible actualizamos LDT(v, w) = -1
             for(auto v : Vertices())
             for(auto w : Vertices()) 
             if(w != v)
@@ -152,15 +152,21 @@ void Instance::UpdatePredecessors() {
             // Preprocess time windows
             for(auto v : Vertices())
             {
-                Time deadline = v != Destination(dir) ? 0 : infty_time;
-                Time release = v != Origin(dir) ? infty_time : 0;
-                for(auto w : Vertices()) {
-                    if(LDT[w][v] >= GetTimeWindow(dir, w).release)
-                        deadline = max(deadline, ArrivalTime(dir, w, v, LDT[w][v]));
-                    if(EAT[w][v] <= GetTimeWindow(dir, v).deadline)
-                        release = min(release, EAT[w][v]);
+                for(auto w : Vertices()) 
+                if(w != v)    
+                {
+                    //w is before v?
+                    if(v != Origin(dir))
+                    if(w == Origin(dir) or LDT[v][w] < GetTimeWindow(dir, v).release or EAT[v][w] > GetTimeWindow(dir, w).deadline) {
+                        changed = UpdateTimeWindow(dir, v, {EAT[w][v], infty_time}) or changed;
+                    }
+                    //v is before w?
+                    if(v != Destination(dir))
+                    if(w == Destination(dir) or LDT[w][v] < GetTimeWindow(dir, w).release or EAT[w][v] > GetTimeWindow(dir, v).deadline) {
+                        changed = UpdateTimeWindow(dir, v, {0, LDT[v][w]}) or changed;
+                    }
+                    
                 }
-                changed = UpdateTimeWindow(dir, v, {release, deadline}) or changed;
                 DEBUG_ELEM(TRACE, "Time window of {} in direction {}: {}", v, dir, GetTimeWindow(dir, v));
             }
         }

@@ -24,7 +24,7 @@ namespace {
     bool is_subset(const VertexSet& x, const VertexSet& y) {return (x & ~y).none();}
     
     void set_best_departure(const Instance& instance, Route& r) {
-        if(r.arrival >= instance.Horizon()) return;
+        if(r.arrival > instance.Horizon()) return;
         r.arrival = instance.ArrivalTime(r, r.departure);
         while(instance.ArrivalTime(r, r.departure + 1) == r.arrival) r.departure += 1;
     }
@@ -36,7 +36,7 @@ tuple<Route, Route, Route, DurationSolverLog> SolveDuration(const Instance& inst
 
     DurationSolverLog log;
     Time p = 0, q = 0, last_p = infty_time;
-    tsptwm::Route prev_best;
+    tsptwm::Route prev_best(0, infty_time, {});
     Route ub(0,infty_time, {}), ms_ub, reverse_ms_ub;
 
     try {
@@ -66,8 +66,8 @@ tuple<Route, Route, Route, DurationSolverLog> SolveDuration(const Instance& inst
                     continue;
                 }
                 
-                if(prev_best.arrival >= instance.Horizon())
-                    prev_best = Route(p, instance.Horizon(), {});
+                if(prev_best.arrival >= last_p + ub.Duration())
+                    prev_best = Route(p, last_p + ub.Duration(), {});
             }
                             
             auto [fwd_best, fwd_log] = SolveMakespan(instance, prev_best, Direction::Forward, p);
@@ -81,8 +81,13 @@ tuple<Route, Route, Route, DurationSolverLog> SolveDuration(const Instance& inst
                     ms_ub = fwd_best;
                 } else if(last_p > instance.Horizon() and fwd_log.ub >= instance.Horizon()) {
                     //por si falla el last_t0
+                    log.status = SolverStatus::Completed;
                     break;
-                } 
+                } else if(fwd_best.path.empty()) {
+                    //no encontro solucion que mejorara la duracion last_p + ub.Duration()
+                    log.status = SolverStatus::Completed;
+                    break;
+                }
 
                 prev_best = fwd_best;
                 set_best_departure(instance, prev_best);
@@ -112,7 +117,7 @@ tuple<Route, Route, Route, DurationSolverLog> SolveDuration(const Instance& inst
                 Stopwatch rolex_ms_back;
                 clog << endl << endl << "Computing the latest feasible departure" << endl; 
 
-                auto [bwd_best, bwd_log] = SolveMakespan(instance, Route(), Direction::Backward, 0);
+                auto [bwd_best, bwd_log] = SolveMakespan(instance, Route(0, infty_time, {}), Direction::Backward, 0);
                 log.enum_time += bwd_log.time;
 
                 log.reverse_ms_ub = bwd_log.ub;
@@ -169,11 +174,6 @@ pair<Route, MakespanSolverLog> SolveMakespan(
 
     // Initial upper bound
     auto ub = init_route;
-    if(ub.path.empty()) {
-        std::iota(ub.path.begin(), ub.path.end(), 0);
-        ub.departure = dep;
-        ub.arrival = instance.Horizon();
-    }
     DEBUG_ELEM(INFO, "ub: {}, duration: {}, instance.horizon {}", ub, ub.Duration(), instance.Horizon());
 
     // Output to console
@@ -187,7 +187,7 @@ pair<Route, MakespanSolverLog> SolveMakespan(
         Route r;
         LBFSLog bfs_log;
         try {
-            tie(r, bfs_log) = LBFS(instance, op(dir), instance.Horizon() - ub.Duration() - dep, instance.Horizon() - dep);
+            tie(r, bfs_log) = LBFS(instance, op(dir), max(0ll, instance.Horizon() - ub.Duration() - dep), instance.Horizon() - dep);
         } catch(std::bad_alloc& e) {
             log.status = SolverStatus::MemoryLimitExceeded;
             stream_info("LBFS (MLE)", rolex.Elapsed());
@@ -241,7 +241,8 @@ pair<Route, LBFSLog> LBFS(const Instance& instance, Direction dir, Time departur
         queue[0].push(make_shared<Label>(VertexSet(), instance.Origin(dir), x, departure+x+step, departure+x+step));
     }
     
-    vector<hash_table<VertexSet, Time>> best(instance.VertexCount());
+//    vector<hash_table<VertexSet, Time>> best(instance.VertexCount());
+    vector<hash_table<VertexSet, vector<pair<Time, Time>>>> best(instance.VertexCount());
     deque<Label> extended;
     
     for(auto q = 0ul, e = 0ul; e < instance.VertexCount() and res.path.empty();) {
@@ -259,18 +260,24 @@ pair<Route, LBFSLog> LBFS(const Instance& instance, Direction dir, Time departur
         auto latest_arrival_l = ptr_l->latest_arrival;
         auto &lq = *ptr_l;
         DEBUG_ELEM(TRACE, "\nProcessing label {}", lq);
-
-        if(auto [it, ins] = best[lq.last].insert({lq.visited,lq.travel_time}); not ins) {
-            if(it->second <= lq.travel_time) {
-                DEBUG_ELEM(TRACE, "\tDominated by a previous label with travel time {}", it->second);
-                plog.dominated_count += 1;
-                continue;
-            } else {
-                DEBUG_ELEM(TRACE, "\tDominates a previous label");
-                it->second = lq.travel_time;
+        
+        if(true) {
+            auto [it, _] = best[lq.last].insert({lq.visited, {}});
+            bool dominated = false;
+            for(auto& [tt, ba] : it->second) {
+                if(tt <= lq.travel_time and ba <= lq.back_arrival_time) {
+                    DEBUG_ELEM(TRACE, "\tDominated by a previous label with travel time {} and back arrival time {}", tt, ba);
+                    plog.dominated_count += 1;
+                    dominated = true;
+                    break;                    
+                }
             }
-        } else {
+            if(dominated) continue;
             DEBUG_ELEM(TRACE, "\tNot dominated by a previous label");            
+            erase_if(it->second, [&](const pair<Time, Time>& tt_ba) {
+                return tt_ba.first >= lq.travel_time and tt_ba.second >= lq.back_arrival_time;
+            });
+            it->second.emplace_back(lq.travel_time, lq.back_arrival_time);
         }
         DEBUG_ELEM(TRACE, "\tVisited: {} + {}", lq.last, lq.visited);
             
@@ -311,14 +318,22 @@ pair<Route, LBFSLog> LBFS(const Instance& instance, Direction dir, Time departur
 
             Label m(visited, v, travel_time, &l);
             
-            if(auto [it, ins] = best[m.last].insert({m.visited, m.travel_time + 1}); not ins) {
-                if(it->second <= m.travel_time) {
-                    DEBUG_ELEM(TRACE, "\tDominated by a previous label");
-                    plog.dominated_count += 1;
-                    continue;
-                } else {
-                    it->second = m.travel_time + 1;
+            if(true) {
+                auto [it, _] = best[m.last].insert({m.visited, {}});
+                bool dominated = false;
+                for(auto& [tt, ba] : it->second) {
+                    if(tt <= m.travel_time and ba <= m.back_arrival_time) {
+                        DEBUG_ELEM(TRACE, "\tDominated by a previous label with travel time {} and back arrival time {}", tt, ba);
+                        plog.dominated_count += 1;
+                        dominated = true;
+                        break;                    
+                    }
                 }
+                if(dominated) continue;
+                erase_if(it->second, [&](const pair<Time, Time>& tt_ba) {
+                    return tt_ba.first >= m.travel_time + 1 and tt_ba.second >= m.back_arrival_time;
+                });
+                it->second.emplace_back(m.travel_time + 1, m.back_arrival_time);
             }
                                               
             m.latest_arrival = min({

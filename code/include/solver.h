@@ -33,7 +33,7 @@ namespace tsptwm
      */
     std::pair<Route, MakespanSolverLog> SolveMakespan(
         const Instance& instance, 
-        const Route& init = Route(), 
+        const Route& init = Route(0, infty_time, {}), 
         Direction d = Direction::Forward,
         Time dep = 0
     );
