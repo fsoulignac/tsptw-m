@@ -36,7 +36,7 @@ tuple<Route, Route, Route, DurationSolverLog> SolveDuration(const Instance& inst
 
     DurationSolverLog log;
     Time p = 0, q = 0, last_p = infty_time;
-    tsptwm::Route prev_best(0, infty_time, {});
+    Route prev_best(0, infty_time, {});
     Route ub(0,infty_time, {}), ms_ub, reverse_ms_ub;
 
     try {
@@ -229,22 +229,19 @@ pair<Route, LBFSLog> LBFS(const Instance& instance, Direction dir, Time departur
     Route res;
 
     using PQ = priority_queue<shared_ptr<Label>, vector<shared_ptr<Label>>, decltype([](const shared_ptr<Label>& l, const shared_ptr<Label>& m){
-        if(l->back_arrival_time > m->back_arrival_time) return true;
-        if(l->back_arrival_time < m->back_arrival_time) return false;
-        return l->latest_arrival > m->latest_arrival;
+        if(l->back_from_latest_time > m->back_from_latest_time) return true;
+        if(l->back_from_latest_time < m->back_from_latest_time) return false;
+        return l->latest_arrival_time > m->latest_arrival_time;
     })>;
     vector<PQ> queue(instance.VertexCount());
     
     auto latest_origin = instance.GetTimeWindow(dir, instance.Origin(dir)).deadline;
-    auto step = (latest_origin - departure)/1;
-    for(Time x = 0; x < latest_origin-departure; x += step) {
-        queue[0].push(make_shared<Label>(VertexSet(), instance.Origin(dir), x, departure+x+step, departure+x+step));
-    }
+    queue[0].push(make_shared<Label>(VertexSet(), instance.Origin(dir), departure, latest_origin, departure, latest_origin));
     
 //    vector<hash_table<VertexSet, Time>> best(instance.VertexCount());
-    vector<hash_table<VertexSet, vector<pair<Time, Time>>>> best(instance.VertexCount());
+    vector<hash_table<VertexSet, pair<Time, Time>>> best(instance.VertexCount());
     deque<Label> extended;
-    
+   
     for(auto q = 0ul, e = 0ul; e < instance.VertexCount() and res.path.empty();) {
         time_guardian.FailIfTimeLimit();
         
@@ -257,29 +254,21 @@ pair<Route, LBFSLog> LBFS(const Instance& instance, Direction dir, Time departur
             
         auto ptr_l = queue[q].top();
         queue[q].pop();
-        auto latest_arrival_l = ptr_l->latest_arrival;
         auto &lq = *ptr_l;
         DEBUG_ELEM(TRACE, "\nProcessing label {}", lq);
         
-        if(true) {
-            auto [it, _] = best[lq.last].insert({lq.visited, {}});
-            bool dominated = false;
-            for(auto& [tt, ba] : it->second) {
-                if(tt <= lq.travel_time and ba <= lq.back_arrival_time) {
-                    DEBUG_ELEM(TRACE, "\tDominated by a previous label with travel time {} and back arrival time {}", tt, ba);
-                    plog.dominated_count += 1;
-                    dominated = true;
-                    break;                    
-                }
+        if(auto [it, ins] = best[lq.last].insert({lq.visited, {lq.earliest_arrival_time, lq.back_from_earliest_time}}); not ins)
+        {
+            auto [eat, back] = it->second;
+            if(eat < lq.earliest_arrival_time or (eat == lq.earliest_arrival_time and back <= lq.back_from_earliest_time)) {
+                DEBUG_ELEM(TRACE, "\tDominated by a previous label with earliest arrival time {} and back from earliest time {}", eat, back);
+                plog.dominated_count += 1;
+                continue;                    
+            } else {
+                it->second = {lq.earliest_arrival_time, lq.back_from_earliest_time};
             }
-            if(dominated) continue;
-            DEBUG_ELEM(TRACE, "\tNot dominated by a previous label");            
-            erase_if(it->second, [&](const pair<Time, Time>& tt_ba) {
-                return tt_ba.first >= lq.travel_time and tt_ba.second >= lq.back_arrival_time;
-            });
-            it->second.emplace_back(lq.travel_time, lq.back_arrival_time);
         }
-        DEBUG_ELEM(TRACE, "\tVisited: {} + {}", lq.last, lq.visited);
+        DEBUG_ELEM(TRACE, "\tNot dominated by a previous label");            
             
         extended.push_back(lq);
         auto& l = extended.back();
@@ -289,7 +278,7 @@ pair<Route, LBFSLog> LBFS(const Instance& instance, Direction dir, Time departur
         if(v != instance.Origin(dir))
         if(v != l.last)
         if(not l.visited.test(v)) 
-        if(departure + l.travel_time <= instance.GetTimeWindow(dir, v).deadline)
+        if(l.earliest_arrival_time <= instance.GetTimeWindow(dir, v).deadline)
         {
             DEBUG_ELEM(TRACE, "\n\nProcessing extension to {}", v);
             plog.enumerated_count += 1;
@@ -297,12 +286,11 @@ pair<Route, LBFSLog> LBFS(const Instance& instance, Direction dir, Time departur
             auto visited = l.visited; 
             visited.set(l.last);
             DEBUG_ELEM(TRACE, "\t\t\tVisited {}", visited);
-            Time arrival = instance.ArrivalTime(dir, l.last, v, departure + l.travel_time);
-            auto travel_time = arrival - departure;
-            DEBUG_ELEM(TRACE, "\t\t\tArrival time: {}, travel time: {}", arrival, travel_time);
+            Time arrival = instance.ArrivalTime(dir, l.last, v, l.earliest_arrival_time);
+            DEBUG_ELEM(TRACE, "\t\t\tArrival time: {}", arrival);
                 
             if(arrival > max_arrival_time or arrival > instance.GetTimeWindow(dir, v).deadline) {
-                DEBUG_ELEM(TRACE, "\t\t\tIgnoring the extension because the arrival time {} exceedes the max travel time {} or the arrival {} is outside the time window {}", travel_time, max_arrival_time, arrival, instance.GetTimeWindow(dir, v));
+                DEBUG_ELEM(TRACE, "\t\t\tIgnoring the extension because the arrival time {} exceedes the max arrival time {} or it is outside the time window {}", arrival, max_arrival_time, instance.GetTimeWindow(dir, v));
                 plog.discarded_count += 1;
                 continue;
             }
@@ -315,47 +303,49 @@ pair<Route, LBFSLog> LBFS(const Instance& instance, Direction dir, Time departur
                 plog.discarded_count += 1;
                 continue;
             }
-
-            Label m(visited, v, travel_time, &l);
-            
-            if(true) {
-                auto [it, _] = best[m.last].insert({m.visited, {}});
-                bool dominated = false;
-                for(auto& [tt, ba] : it->second) {
-                    if(tt <= m.travel_time and ba <= m.back_arrival_time) {
-                        DEBUG_ELEM(TRACE, "\tDominated by a previous label with travel time {} and back arrival time {}", tt, ba);
-                        plog.dominated_count += 1;
-                        dominated = true;
-                        break;                    
-                    }
-                }
-                if(dominated) continue;
-                erase_if(it->second, [&](const pair<Time, Time>& tt_ba) {
-                    return tt_ba.first >= m.travel_time + 1 and tt_ba.second >= m.back_arrival_time;
-                });
-                it->second.emplace_back(m.travel_time + 1, m.back_arrival_time);
-            }
-                                              
-            m.latest_arrival = min({
-                instance.ArrivalTime(dir, l.last, v, latest_arrival_l),
+                                                          
+            auto latest_arrival = min({
+                instance.ArrivalTime(dir, l.last, v, l.latest_arrival_time),
                 instance.GetTimeWindow(dir, v).deadline,
                 max_arrival_time
             });
+            
+            Label m(visited, v, arrival, latest_arrival, &l);
+
             auto m_route = m.GetRoute();
             reverse(m_route.path.begin(), m_route.path.end());
-            m.back_arrival_time = instance.ArrivalTime(
+            m.back_from_earliest_time = instance.ArrivalTime(
                 op(dir), 
                 m_route, 
-                instance.Horizon() - m.latest_arrival
+                instance.Horizon() - m.earliest_arrival_time
+            );
+            m.back_from_latest_time = instance.ArrivalTime(
+                op(dir), 
+                m_route, 
+                instance.Horizon() - m.latest_arrival_time
             );
             DEBUG_ELEM(TRACE, "\t\tComputed the extension {}", m);            
-            ASSERT(ASSERTION, m.back_arrival_time <= instance.Horizon() - departure, "back arrival time {} greater than back departure {} (horizon - departure = {}-{}) in feasible path {}.", m.back_arrival_time, instance.Horizon()-departure, instance.Horizon(), departure, m);
+            ASSERT(ASSERTION, m.back_from_earliest_time <= instance.Horizon() - departure, "back from earliest arrival time {} greater than back departure {} (horizon - departure = {}-{}) in feasible path {}.", m.back_from_earliest_time, instance.Horizon()-departure, instance.Horizon(), departure, m);
+            ASSERT(ASSERTION, m.back_from_latest_time <= instance.Horizon() - departure, "back from latest arrival time {} greater than back departure {} (horizon - departure = {}-{}) in feasible path {}.", m.back_from_latest_time, instance.Horizon()-departure, instance.Horizon(), departure, m);
 
-            if(m.back_arrival_time == instance.Horizon() - departure) {
-                DEBUG_ELEM(TRACE, "\t\tDiscarding {} because of the back arrival time {}", m, m.back_arrival_time);
+            if(m.back_from_latest_time == instance.Horizon() - departure) {
+                DEBUG_ELEM(TRACE, "\t\tDiscarding {} because of the back from latest arrival time {}", m, m.back_from_latest_time);
                 plog.discarded_count += 1;
                 continue;
             }
+
+            if(auto [it, ins] = best[m.last].insert({m.visited, {m.earliest_arrival_time+1, lq.back_from_earliest_time}}); not ins)
+            {
+                auto [eat, back] = it->second;
+                if(eat < m.earliest_arrival_time or (eat == m.earliest_arrival_time and back <= m.back_from_earliest_time)) {
+                    DEBUG_ELEM(TRACE, "\tDominated by a previous label with earliest arrival time {} and back from earliest time {}", eat, back);
+                    plog.dominated_count += 1;
+                    continue;                    
+                } else {
+                    it->second = {m.earliest_arrival_time+1, m.back_from_earliest_time};
+                }
+            }
+            DEBUG_ELEM(TRACE, "\tNot dominated by a previous label");            
 
             if(m.last == instance.Destination(dir)) 
             {

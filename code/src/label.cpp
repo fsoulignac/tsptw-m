@@ -12,7 +12,7 @@ Route Label::GetRoute(Time departure) const
     for(auto it = this; it != nullptr; it = it->prev)
         path.push_back(it->last);
     reverse(path.begin(), path.end());
-    return Route(departure, departure+travel_time, path);
+    return Route(departure, earliest_arrival_time, path);
 }
     
 }

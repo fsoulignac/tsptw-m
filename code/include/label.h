@@ -30,13 +30,16 @@ public:
     Vertex last = 0;
     
     /** travel time to reach vertex last */
-    Time travel_time = 0;
-        
-    /** backward arrival time to the origin departing from the release window of last */
-    Time back_arrival_time = infty_time;
-    
+    Time earliest_arrival_time = 0;
+
     /** latest possible arrival time to reach vertex last */
-    Time latest_arrival = 0;
+    Time latest_arrival_time = 0;
+        
+    /** backward arrival time from earliest possible arrival */
+    Time back_from_earliest_time = infty_time;
+
+    /** backward arrival time from latest possible arrival */
+    Time back_from_latest_time = infty_time;    
     
     /** Label obtained by removing last vertex; needed for reconstructing the truck and drone paths */
     const Label* prev = nullptr; 
@@ -44,11 +47,11 @@ public:
     Label() = default;
     
     /** Constructors to emplace back */
-    Label(VertexSet V, Vertex v, Time tt, Time back_at, Time late_a) :
-    visited(V), last(v), travel_time(tt), back_arrival_time(back_at), latest_arrival(late_a) {}
+    Label(VertexSet V, Vertex v, Time eat, Time lat, Time back_eat, Time back_lat) :
+    visited(V), last(v), earliest_arrival_time(eat), latest_arrival_time(lat), back_from_earliest_time(back_eat), back_from_latest_time(back_lat), prev(nullptr) {}
 
-    Label(VertexSet V, Vertex v, Time tt, const Label* p = nullptr) :
-    visited(V), last(v), travel_time(tt), prev(p) {}
+    Label(VertexSet V, Vertex v, Time eat, Time lat, const Label* p = nullptr) :
+    visited(V), last(v), earliest_arrival_time(eat), latest_arrival_time(lat), prev(p) {}
 
     /**
      * @brief returns the partial route associated to the label.  
@@ -72,8 +75,8 @@ struct std::formatter<tsptwm::Label> {
     constexpr auto parse(std::format_parse_context& ctx) {return ctx.begin();}
     auto format(const tsptwm::Label& l, std::format_context& ctx) const {
         return std::format_to(ctx.out(), 
-            "(length: {}, last: {}, travel time: {}, back_arrival_time: {}, latest_arrival: {}, visited: {}) -> {}", 
-            l.visited.count(), l.last, l.travel_time, l.back_arrival_time, l.latest_arrival, l.visited, l.GetRoute()
+            "(length: {}, last: {}, earliest arrival time: {}, latest_arrival_time: {}, back_from_earliest_time: {}, back_from_latest_time: {}, visited: {}) -> {}", 
+            l.visited.count(), l.last, l.earliest_arrival_time, l.latest_arrival_time, l.back_from_earliest_time, l.back_from_latest_time, l.visited, l.GetRoute()
         );
     }
 };
