@@ -1,0 +1,15 @@
+{
+  "description": "Experiments for the TSPTW-M and TSPTW-D for 256 customers",
+  "datasets": [
+    {"name": "ascheuer_1996", "select": "rbg021.7 | rbg021.8 | rbg021.9 | rbg021.6"}
+  ],
+  "experiments": [
+    {
+      "name": "basic",
+      "executable": "tsptw255",
+      "time_limit": 180,
+      "reverse": false,
+      "makespan_only": true
+    }
+  ]
+}

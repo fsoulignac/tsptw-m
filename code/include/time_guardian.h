@@ -49,6 +49,10 @@ public:
      */
     Duration Now() const;
     
+    /**
+     * @brief Returns the time limit
+     */
+    Duration GetTimeLimit() const;
 private:
     Stopwatch rolex;   //keeps track of time; it never stops
     Duration time_limit{0};   //time limit; initially 0, thus it fails if no time limit is set and Fail... is called

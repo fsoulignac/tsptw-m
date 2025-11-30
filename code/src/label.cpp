@@ -9,7 +9,7 @@ namespace tsptwm
 Route Label::GetRoute(Time departure) const
 {
     GraphPath path;
-    for(auto it = this; it != nullptr; it = it->prev)
+    for(auto it = this; it != nullptr; it = it->prev.get())
         path.push_back(it->last);
     reverse(path.begin(), path.end());
     return Route(departure, earliest_arrival_time, path);

@@ -11,7 +11,7 @@
 
 namespace tsptwm {
     
-Route LocalSearch(const Instance& instance, const Route& route);
+Route LocalSearch(const Instance& instance, const Route& route, bool from_departure = true);
 
 }  // namespace tsptwm
 

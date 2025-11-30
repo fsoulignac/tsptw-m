@@ -1,7 +1,7 @@
 {
   "description": "Experiments for the TSPTW-M and TSPTW-D for 256 customers",
   "datasets": [
-    {"name": "ascheuer_1996"},
+    {"name": "ascheuer_1996", "select": "!rbg021.7 !rbg021.8 !rbg021.9 !rbg021.6"},
     {"name": "dumas_et_al_1995"},
     {"name": "ohlmann_thomas_2007"},
     {"name": "d_ohlmann_thomas_2007"}
@@ -10,14 +10,14 @@
     {
       "name": "basic",
       "executable": "tsptw255",
-      "time_limit": 3600,
+      "time_limit": 1800,
       "reverse": false,
       "makespan_only": false
     },
     {
       "name": "basic-reverse",
       "executable": "tsptw255",
-      "time_limit": 3600,
+      "time_limit": 1800,
       "penalty_method": false,
       "reverse": true,
       "makespan_only": false

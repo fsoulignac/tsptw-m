@@ -23,5 +23,9 @@ Duration TimeGuardian::Now() const
     return rolex.Elapsed();
 }
     
+Duration TimeGuardian::GetTimeLimit() const
+{
+    return time_limit;
+}
     
 }

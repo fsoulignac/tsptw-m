@@ -17,7 +17,8 @@ using PairOperation = std::function<bool(Route&, size_t, size_t)>;
 bool LocalImprove(
     const Instance& instance, 
     Route* route, 
-    const PairOperation& op
+    const PairOperation& op,
+    bool from_departure
 )
 {
     bool res = false;
@@ -27,7 +28,14 @@ bool LocalImprove(
         Route r = *route;
         if(not op(r, i, j)) continue;
         r.arrival = instance.ArrivalTime(r, r.departure);
-        if(r.arrival < route->arrival) 
+        if(not from_departure) 
+        if(r.arrival <= route->arrival)
+        {
+            auto rr = r;
+            reverse(rr.path.begin(), rr.path.end());
+            r.departure = instance.Horizon() - instance.ArrivalTime(Direction::Backward, rr, instance.Horizon() - r.arrival);
+        }
+        if(r.Duration() < route->Duration()) 
         {
             *route = r;
             res = true;
@@ -40,7 +48,8 @@ bool LocalImprove(
 void LocalSearch(
     const Instance& instance, 
     Route* route, 
-    const vector<PairOperation>& operators
+    const vector<PairOperation>& operators,
+    bool from_departure
 )
 {
     bool improve = true;
@@ -48,7 +57,7 @@ void LocalSearch(
     {
         improve = false;
         for(auto& op : operators) 
-            improve = LocalImprove(instance, route, op) or improve;
+            improve = LocalImprove(instance, route, op, from_departure) or improve;
     }
 } 
 
@@ -75,10 +84,11 @@ bool ShiftOperation(Route& r, size_t i, size_t j) {
 
 Route LocalSearch(
     const Instance& instance, 
-    const Route& route
+    const Route& route,
+    bool from_departure
 ) {
     Route r = route;
-    LocalSearch(instance, &r, vector<PairOperation>{SwapOperation, TwoOptOperation, ShiftOperation});
+    LocalSearch(instance, &r, vector<PairOperation>{SwapOperation, TwoOptOperation, ShiftOperation}, from_departure);
     return r;
 }
 

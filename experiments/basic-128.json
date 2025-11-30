@@ -7,14 +7,14 @@
     {
       "name": "basic",
       "executable": "tsptw127",
-      "time_limit": 3600,
+      "time_limit": 1800,
       "reverse": false,
       "makespan_only": false
     },
     {
       "name": "basic-reverse",
       "executable": "tsptw127",
-      "time_limit": 3600,
+      "time_limit": 1800,
       "reverse": true,
       "makespan_only": false
     }

@@ -13,6 +13,9 @@
 
 namespace tsptwm
 {
+
+class Label;
+using LabelPtr = std::shared_ptr<const Label>;    
     
 /**
  * @class Label
@@ -42,7 +45,7 @@ public:
     Time back_from_latest_time = infty_time;    
     
     /** Label obtained by removing last vertex; needed for reconstructing the truck and drone paths */
-    const Label* prev = nullptr; 
+    LabelPtr prev = nullptr; 
     
     Label() = default;
     
@@ -50,7 +53,7 @@ public:
     Label(VertexSet V, Vertex v, Time eat, Time lat, Time back_eat, Time back_lat) :
     visited(V), last(v), earliest_arrival_time(eat), latest_arrival_time(lat), back_from_earliest_time(back_eat), back_from_latest_time(back_lat), prev(nullptr) {}
 
-    Label(VertexSet V, Vertex v, Time eat, Time lat, const Label* p = nullptr) :
+    Label(VertexSet V, Vertex v, Time eat, Time lat, const LabelPtr& p) :
     visited(V), last(v), earliest_arrival_time(eat), latest_arrival_time(lat), prev(p) {}
 
     /**
@@ -61,8 +64,6 @@ public:
      */
     Route GetRoute(Time departure = 0) const;
 };
-
-using LabelPtr = std::shared_ptr<const Label>;    
 
 } // namespace tsptwm
 

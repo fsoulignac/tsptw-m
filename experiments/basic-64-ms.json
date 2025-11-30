@@ -4,13 +4,13 @@
     {"name": "langevin_et_al_1993"},
     {"name": "pesant_et_al_1998"},
     {"name": "potvin_bengio_1996"},
-    {"name": "rifki_et_al_2020"}    
+    {"name": "rifki_et_al_2020"}
   ],
   "experiments": [
     {
       "name": "basic",
       "executable": "tsptw63",
-      "time_limit": 3600,
+      "time_limit": 180,
       "reverse": false,
       "makespan_only": true
     }

@@ -203,6 +203,8 @@ def main():
 		TInit = datetime.datetime.now() # TInit = "timestamp when the experimentation started".
 		TLast = datetime.datetime.now() # TLast = "last time the output was saved".
 
+		print(blue(F"Output file: {output_file_name}"))
+
 		# For each instances specified in the experiment file.
 		for instance in instances_for_experiment_file(experiment_file_json):
 			# Get instance solutions from the dataset directory.
