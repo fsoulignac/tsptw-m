@@ -1,6 +1,6 @@
 # Beware of the Classical Benchmark Instances for the Traveling Salesman Problem with Time Windows (preprint version)
 
-Source code used for the experiments in the preprint version of the paper.  It includes simple solvers for the TSPTW-M and the TSTPTW-D.
+Source code used for the experiments in the preprint [version of the paper](https://arxiv.org/abs/2512.01064).  It includes simple solvers for the TSPTW-M and the TSTPTW-D.
 
 ## Abstract
 
