@@ -85,7 +85,7 @@ tuple<Route, Route, Route, DurationSolverLog> SolveDuration(const Instance& inst
                 if(p == 0) {
                     log.ms_status = SolverStatus::Completed;
                     ms_ub = fwd_best;
-                    ASSERT(ASSERTION, instance.ArrivalTime(ub) == ub.arrival, "Bad makespan solution {}", ub);
+                    ASSERT(ASSERTION, instance.ArrivalTime(ms_ub) == ms_ub.arrival, "Bad makespan solution {}", ms_ub);
                 } else if(fwd_best.path.empty()) {
                     //no encontro solucion que mejorara la duracion last_p + ub.Duration()
                     log.status = SolverStatus::Completed;
