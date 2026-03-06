@@ -83,6 +83,7 @@ int main()
     Duration time_limit = std::chrono::seconds(experiment.value("time_limit", 600));
     bool reverse_instance = experiment.value("reverse", true);
     bool ms_only = experiment.value("makespan_only", false);
+    int log_level_id = experiment.value("log_level", 0);
         
     // Show experiment details.
     // We use clog to output execution information, and cout to output the result of the execution.
@@ -134,7 +135,10 @@ int main()
     try {
         Input tsp = instance_json;
         Instance instance(&tsp);
-        tie(ub, ms_ub, reverse_ms_ub, log) = SolveDuration(instance, ms_only);
+        LogLevel log_lvl = LogLevel::SolverOnly;
+        if(log_level_id == 1) log_lvl = LogLevel::AllMakespan;
+        if(log_level_id > 1) log_lvl = LogLevel::AllLBFS;
+        tie(ub, ms_ub, reverse_ms_ub, log) = SolveDuration(instance, ms_only, log_lvl);
     }
     catch (std::bad_alloc& e)
     {

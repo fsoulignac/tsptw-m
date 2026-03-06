@@ -31,7 +31,7 @@ namespace {
     }
 }
 
-tuple<Route, Route, Route, DurationSolverLog> SolveDuration(const Instance& instance, bool ms_only)
+tuple<Route, Route, Route, DurationSolverLog> SolveDuration(const Instance& instance, bool ms_only, LogLevel log_lvl)
 {
     DurationSolverLog log;
     Time p = 0, q = 0, last_p = infty_time;
@@ -76,8 +76,10 @@ tuple<Route, Route, Route, DurationSolverLog> SolveDuration(const Instance& inst
                     prev_best = Route(p, min(last_p + ub.Duration(), instance.Horizon()+1), {});
             }
                             
-            auto [fwd_best, fwd_log] = SolveMakespan(instance, prev_best, Direction::Forward, p);
+            auto [fwd_best, fwd_log] = SolveMakespan(instance, prev_best, Direction::Forward, p, log_lvl);
             log.enum_time += fwd_log.time;
+            if(log_lvl != LogLevel::SolverOnly)
+                log.iterations.push_back(fwd_log);
                             
             if(fwd_log.status == SolverStatus::Completed) {
                 DEBUG_ELEM(ASSERTION, "Found a solution {}", fwd_best);
@@ -124,7 +126,11 @@ tuple<Route, Route, Route, DurationSolverLog> SolveDuration(const Instance& inst
                 //no more than 1 minute or 5 times the forward, whichever is maximum
                 auto prev_time_limit = time_guardian.GetTimeLimit();
                 time_guardian.SetTimeLimit(max(time_guardian.Now() * 5, time_guardian.Now() + std::chrono::seconds(60)));   
-                auto [bwd_best, bwd_log] = SolveMakespan(instance, Route(ub.departure, instance.Horizon(), {}), Direction::Backward, 0);
+                auto [bwd_best, bwd_log] = SolveMakespan(instance, Route(ub.departure, instance.Horizon(), {}), Direction::Backward, 0, log_lvl);
+                if(log_lvl != LogLevel::SolverOnly)
+                    log.iterations.push_back(bwd_log);
+
+
                 time_guardian.SetTimeLimit(prev_time_limit);
                 log.enum_time += bwd_log.time;
 
@@ -185,12 +191,15 @@ pair<Route, MakespanSolverLog> SolveMakespan(
     const Instance& instance, 
     const Route& init_route,
     Direction dir,
-    Time dep
+    Time dep,
+    LogLevel log_lvl
 ) {
 
     DEBUG_ELEM(INFO, "Solver::InformedSearch()");
     Stopwatch rolex;    
     MakespanSolverLog log;
+    log.departure = dep;
+    log.direction = dir;
 
     // Initial upper bound
     auto ub = init_route;
@@ -229,6 +238,8 @@ pair<Route, MakespanSolverLog> SolveMakespan(
             solved = true;
         }
         stream_info("LBFS", bfs_log.time);
+        if(log_lvl == LogLevel::AllLBFS)
+            log.iterations.push_back(bfs_log);
     }
     log.time = rolex.Elapsed();
     log.ub = ub.Duration();
@@ -248,6 +259,9 @@ pair<Route, LBFSLog> LBFS(const Instance& instance, Direction dir, Time departur
     LBFSLog plog;
     Route res;
 
+    plog.departure = departure;
+    plog.max_arrival = max_arrival_time;
+    
     using PQ = priority_queue<shared_ptr<Label>, vector<shared_ptr<Label>>, decltype([](const shared_ptr<Label>& l, const shared_ptr<Label>& m){
         if(l->back_from_latest_time > m->back_from_latest_time) return true;
         if(l->back_from_latest_time < m->back_from_latest_time) return false;

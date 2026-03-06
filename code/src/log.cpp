@@ -11,6 +11,8 @@ void to_json(json& j, const LBFSLog& log)
 {
 	j["kd_type"] = "tsptwm_lbfs"; // ID of the log type.
 	j["time"] = to_seconds(log.time);
+    j["depature"] = log.departure;
+    j["max_arrival"] = log.max_arrival;
 	j["enumerated_count"] = log.enumerated_count;
 	j["dominated_count"] = log.dominated_count;
 	j["undominated_count"] = log.undominated_count;
@@ -21,9 +23,11 @@ void to_json(json& j, const MakespanSolverLog& log)
 {
 	j["kd_type"] = "tsptwm_ms_solver";
 	j["time"] = to_seconds(log.time);
+    j["direction"] = format("{}", log.direction);
+    j["departure"] = log.departure;
 	j["status"] = format("{}", log.status);
 	j["ub"] = log.ub;
-    j["iterations"] = log.iterations;
+    j["lbfs_iterations"] = log.iterations;
 }
 
 void to_json(json& j, const DurationSolverLog& log)
@@ -42,7 +46,7 @@ void to_json(json& j, const DurationSolverLog& log)
 	j["enum_time"] = to_seconds(log.enum_time);
 	j["ms_preprocess_time"] = to_seconds(log.ms_preprocess_time);
 	j["ms_enum_time"] = to_seconds(log.ms_enum_time);
-    j["iterations"] = log.iterations;
+    j["ms_iterations"] = log.iterations;
 }
 
 } // namespace tsptwm

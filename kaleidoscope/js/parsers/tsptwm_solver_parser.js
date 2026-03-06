@@ -42,10 +42,10 @@ class TSPTWMSolverParser extends Parser
       [obj.preprocess_time, obj.enum_time, obj.ms_preprocess_time, obj.ms_enum_time]
     );
 
-    if(obj.iterations.length > 0) {
+    if(obj.ms_iterations.length > 0) {
         view_section.add_label_row("MS iterations", " ");
         view_section.add_slider_row(
-        obj.iterations,
+        obj.ms_iterations,
           (iter, ms, ms_section) => {
             ms_section.add_html_row(`<span class="slider_header">#${iter+1}</span>`);
             kd.get_parser(ms.kd_type)?.detail_view_rows(ms, ms_section);

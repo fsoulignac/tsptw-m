@@ -58,6 +58,8 @@ There are five experiment files:
 1. ```experiments/basic-128.json```: to run the experiments for the Gen benchmark
 1. ```experiments/basic-64-ms.json```: to run the experiments for the TSPTW-M only using the Lan, Pes, Pot, and Rif benchmarks
 
+You can obtain more detailed metrics of the algorithm (iterations of the BFS method, enumerated labels, dominated labels, etc.) by changing the setting `log_level` in the experiment files.  The possible values are `0` (default), `1` (details about the makespan solver within the TSPTW-D), and `2` (`1` + details about the BFS method).  Keep in mind that setting `log_level = 2` could result in huge output files.
+
 ### Visualizing the experiment results
 
 The results of the experiments are saved in the output folder and are in a human readable JSON format.  We also provide a JSON file with the results from our experiments in folder ```final_results```.

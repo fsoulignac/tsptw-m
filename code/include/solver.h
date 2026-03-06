@@ -11,8 +11,17 @@
 
 namespace tsptwm
 {
+    enum class LogLevel {
+        AllLBFS,        //logs every iteration of LBFS and every iteration of SolveMakespan
+        AllMakespan,    //logs every iteration of SolveMakespan without the log of the LBFS
+        SolverOnly     //logs only the information of the main solver
+    };
 
-    std::tuple<Route, Route, Route, DurationSolverLog> SolveDuration(const Instance& instance, bool ms_only);
+    std::tuple<Route, Route, Route, DurationSolverLog> SolveDuration(
+        const Instance& instance, 
+        bool ms_only, 
+        LogLevel log_lvl = LogLevel::SolverOnly
+    );
     
     
     /**
@@ -35,7 +44,8 @@ namespace tsptwm
         const Instance& instance, 
         const Route& init = Route(0, infty_time, {}), 
         Direction d = Direction::Forward,
-        Time dep = 0
+        Time dep = 0,
+        LogLevel log_lvl = LogLevel::SolverOnly
     );
 
     /**

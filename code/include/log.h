@@ -37,6 +37,8 @@ enum class SolverStatus {
 struct LBFSLog
 {
     Duration time{0}; /**< total time spent by the algorithm */
+    Time departure; /**< time of departure from the start depot */
+    Time max_arrival; /**< latest time of arrival to the end depot */
     size_t enumerated_count = 0; /**< number of labels enumerated and possibly discarded */
     size_t dominated_count = 0; /**< number of labels totally dominated and discarded withing domination */
     size_t undominated_count = 0; /**< number of labels that were not dominated. */
@@ -58,6 +60,8 @@ struct MakespanSolverLog
 {
 	Duration time{0}; /**< total time spent solving the problem. */
 	SolverStatus status = SolverStatus::DidNotStart; /**< the final status of the execution. */
+    Direction direction; /**< direction of the route */
+    Time departure; /**< time of depature from the depot (respecting direction) */
 	Time ub = infty_time; /**< final upper bound obtained by the solver */
     std::vector<LBFSLog> iterations; /**< logs for the iterations of the LBFS method */
 

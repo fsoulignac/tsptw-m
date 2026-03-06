@@ -17,10 +17,10 @@ class TSPTWMMSSolverParser extends Parser
       [obj.time, obj.status, obj.ub]
     );
         
-    if(obj.iterations.length > 0) {
+    if(obj.lbfs_iterations.length > 0) {
         view_section.add_label_row("LBFS iterations", " ");
         view_section.add_slider_row(
-        obj.iterations,
+        obj.lbfs_iterations,
           (iter, lbfs, lbfs_section) => {
             lbfs_section.add_html_row(`<span class="slider_header">#${iter+1}</span>`);
             kd.get_parser(lbfs.kd_type)?.detail_view_rows(lbfs, lbfs_section);
