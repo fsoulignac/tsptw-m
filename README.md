@@ -1,10 +1,10 @@
 # Beware of the Classical Benchmark Instances for the Traveling Salesman Problem with Time Windows (preprint version)
 
-Source code used for the experiments in the preprint [version of the paper](https://arxiv.org/abs/2512.01064).  It includes simple solvers for the TSPTW-M and the TSTPTW-D.
+Source code used for the experiments in the [article](https://doi.org/10.1016/j.cor.2026.107461) and its [preprint version](https://arxiv.org/abs/2512.01064).  It includes simple solvers for the TSPTW-M and the TSTPTW-D.
 
 ## Abstract
 
-We propose a simple and exact informed search method for the Traveling Salesman Problem with Time Windows and Makespan objective (TSPTW-M) that solves all instances of the classical benchmark having 50 or more customers in less than ten seconds each.  Applying this algorithm as an off-the-shelf method, we also solve all but one of these instances for the Duration objective.  Our main conclusion is that these instances should no longer be employed for evaluating the TSTPW-M and its Duration variant: they can be "hacked" to yield results that seem outstanding at first sight.  Additionaly, caution is advised when designing hard training sets for machine learning algorithms.
+We propose a simple and exact method for the Traveling Salesman Problem with Time Windows and Makespan objective (TSPTW-M) that solves all instances of the classical benchmark with 50 or more customers in less than ten seconds each. Applying this algorithm as an off-the-shelf method, we also solve all but one of these instances for the Duration objective. Our main conclusion is that these instances alone are no longer representative for evaluating the TSPTW-M and its Duration variant: their structure can be exploited to yield results that seem outstanding at first glance. Additionally, caution is advised when designing hard training sets for machine learning algorithms.
 
 ## Results of our experiments
 
